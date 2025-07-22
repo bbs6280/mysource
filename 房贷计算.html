@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <title>房贷提前还款对比工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1200px;
+        }
+        h1, h2, h3 {
+            margin-top: 30px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .section {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 280px;
+            box-sizing: border-box;
+        }
+        .divider {
+            height: 2px;
+            background: #ddd;
+            margin: 30px 0;
+        }
+        .compare-btn {
+            margin-top: 15px;
+            padding: 10px 25px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .compare-btn:hover {
+            background-color: #0056b3;
+        }
+        .result-summary {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        /* 每月详情左右并排表格 */
+        .monthly-compare {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            max-height: 450px;
+            overflow-y: auto;
+            display: block;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: right;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        th {
+            background-color: #f5f5f5;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        td:first-child, th:first-child {
+            text-align: center;
+            white-space: nowrap;
+        }
+        .monthly-column {
+            flex: 1;
+            min-width: 400px;
+            max-width: 600px;
+        }
+        label {
+            display: flex;
+            flex-direction: column;
+            font-weight: normal;
+            font-size: 14px;
+        }
+        label input, label select {
+            margin-top: 5px;
+            padding: 6px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            width: 160px;
+        }
+        /* 贷款总信息单行显示 */
+        #total-info label {
+            margin-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>房贷提前还款对比工具</h1>
+
+    <!-- 总信息 -->
+    <div id="total-info" class="flex-row" style="align-items:center; flex-wrap: nowrap; margin-bottom: 15px;">
+        <label>贷款总额（元）
+            <input type="number" id="loanAmount" value="590000" min="1" />
+        </label>
+        <label>贷款总年限（年）
+            <input type="number" id="loanYears" value="28" min="1" />
+        </label>
+        <label>年利率（%）
+            <input type="number" id="annualRate" value="2.85" step="0.01" min="0" />
+        </label>
+    </div>
+
+    <!-- 方案A和方案B并排 -->
+    <div class="flex-row">
+        <div class="section">
+            <h2>方案 A</h2>
+            <label>提前还款时间（月）
+                <input type="number" id="delayA" value="0" min="0" />
+            </label>
+            <label>提前还款金额（元）
+                <input type="number" id="extraA" value="60000" min="0" />
+            </label>
+            <label>操作类型
+                <select id="typeA">
+                    <option value="shorten">缩短年限</option>
+                    <option value="reduce">减少月供</option>
+                </select>
+            </label>
+            <label>还款后目标年限（仅缩短年限时填写）
+                <input type="number" id="shortenYearsA" value="21" min="1" />
+            </label>
+        </div>
+        <div class="section">
+            <h2>方案 B</h2>
+            <label>提前还款时间（月）
+                <input type="number" id="delayB" value="12" min="0" />
+            </label>
+            <label>提前还款金额（元）
+                <input type="number" id="extraB" value="60000" min="0" />
+            </label>
+            <label>操作类型
+                <select id="typeB">
+                    <option value="shorten">缩短年限</option>
+                    <option value="reduce">减少月供</option>
+                </select>
+            </label>
+            <label>还款后目标年限（仅缩短年限时填写）
+                <input type="number" id="shortenYearsB" value="20" min="1" />
+            </label>
+        </div>
+    </div>
+
+    <button class="compare-btn" onclick="compare()">开始对比</button>
+
+    <div class="divider"></div>
+
+    <!-- 结果展示 -->
+    <div id="compareResult"></div>
+
+    <script>
+        function calculatePlan(amount, years, rate, extra, delayMonths, type, newYears) {
+            const months = years * 12;
+            const monthlyRate = rate / 100 / 12;
+
+            let remaining = amount;
+            let schedule = [];
+            let monthlyPayment = amount * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1);
+
+            let totalInterest = 0;
+            let newMonthlyPayment = monthlyPayment;
+            let newMonths = months;
+
+            for (let i = 1; i <= months; i++) {
+                let interest = remaining * monthlyRate;
+                let principal = newMonthlyPayment - interest;
+                if(principal > remaining) principal = remaining; // 最后一期调整
+                let entry = { month: i, principal: principal, interest: interest, remain: remaining };
+
+                if (i === delayMonths) {
+                    remaining -= principal;
+                    remaining -= extra;
+
+                    if (type === "shorten") {
+                        newMonths = newYears * 12 - i;
+                        newMonthlyPayment = remaining * monthlyRate * Math.pow(1 + monthlyRate, newMonths) / (Math.pow(1 + monthlyRate, newMonths) - 1);
+                    } else {
+                        newMonthlyPayment = remaining * monthlyRate * Math.pow(1 + monthlyRate, months - i) / (Math.pow(1 + monthlyRate, months - i) - 1);
+                        newMonths = months - i;
+                    }
+
+                    entry.extra = extra;
+                }
+
+                totalInterest += interest;
+                remaining -= principal;
+                if(remaining < 0) remaining = 0;
+
+                entry.payment = newMonthlyPayment;
+                entry.remainAfter = remaining;
+                schedule.push(entry);
+
+                if (remaining <= 0) break;
+            }
+
+            return { schedule: schedule, totalInterest: totalInterest, totalMonths: schedule.length };
+        }
+
+        function compare() {
+            const loanAmount = parseFloat(document.getElementById("loanAmount").value);
+            const loanYears = parseInt(document.getElementById("loanYears").value);
+            const annualRate = parseFloat(document.getElementById("annualRate").value);
+
+            const extraA = parseFloat(document.getElementById("extraA").value);
+            const delayA = parseInt(document.getElementById("delayA").value) + 1;
+            const typeA = document.getElementById("typeA").value;
+            const shortenYearsA = parseInt(document.getElementById("shortenYearsA").value);
+
+            const extraB = parseFloat(document.getElementById("extraB").value);
+            const delayB = parseInt(document.getElementById("delayB").value) + 1;
+            const typeB = document.getElementById("typeB").value;
+            const shortenYearsB = parseInt(document.getElementById("shortenYearsB").value);
+
+            const planA = calculatePlan(loanAmount, loanYears, annualRate, extraA, delayA, typeA, shortenYearsA);
+            const planB = calculatePlan(loanAmount, loanYears, annualRate, extraB, delayB, typeB, shortenYearsB);
+
+            const container = document.getElementById("compareResult");
+
+            function createTable(plan) {
+                let html = '<table><thead><tr><th>月</th><th>总还款(元)</th><th>本金(元)</th><th>利息(元)</th><th>剩余本金(元)</th><th>提前还款(元)</th></tr></thead><tbody>';
+                plan.schedule.forEach(p => {
+                    html += `<tr>
+                        <td>${p.month}</td>
+                        <td>${p.payment.toFixed(2)}</td>
+                        <td>${p.principal.toFixed(2)}</td>
+                        <td>${p.interest.toFixed(2)}</td>
+                        <td>${p.remainAfter.toFixed(2)}</td>
+                        <td>${p.extra ? p.extra.toFixed(2) : '-'}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                return html;
+            }
+
+            container.innerHTML = `
+                <h2>对比结果</h2>
+                <div class="result-summary">方案 A：总还款月数：${planA.totalMonths}，总利息：${planA.totalInterest.toFixed(2)} 元</div>
+                <div class="result-summary">方案 B：总还款月数：${planB.totalMonths}，总利息：${planB.totalInterest.toFixed(2)} 元</div>
+                <div class="result-summary">B 相比 A 还款月数少了：${planA.totalMonths - planB.totalMonths} 个月，总利息少了：${(planA.totalInterest - planB.totalInterest).toFixed(2)} 元</div>
+
+                <h3>每月还款详情对比</h3>
+                <div class="monthly-compare">
+                    <div class="monthly-column">
+                        <strong>方案 A 每月详情</strong>
+                        ${createTable(planA)}
+                    </div>
+                    <div class="monthly-column">
+                        <strong>方案 B 每月详情</strong>
+                        ${createTable(planB)}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
