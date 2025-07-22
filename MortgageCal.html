@@ -252,11 +252,19 @@
                 return html;
             }
 
+            let txt_1 = "<span style='color: green'>少了</span>";
+            let txt_2 = "<span style='color: green'>少了</span>";
+            if (planA.totalMonths < planB.totalMonths){
+                txt_1 = "<span style='color: red'>多了</span>";
+            }
+            if (planA.totalInterest < planB.totalInterest){
+                txt_2 = "<span style='color: red'>多了</span>";
+            }
             container.innerHTML = `
                 <h2>对比结果</h2>
                 <div class="result-summary">方案 A：总还款月数：${planA.totalMonths}，总利息：${planA.totalInterest.toFixed(2)} 元</div>
                 <div class="result-summary">方案 B：总还款月数：${planB.totalMonths}，总利息：${planB.totalInterest.toFixed(2)} 元</div>
-                <div class="result-summary">B 相比 A 还款月数少了：${planA.totalMonths - planB.totalMonths} 个月，总利息少了：${(planA.totalInterest - planB.totalInterest).toFixed(2)} 元</div>
+                <div class="result-summary">B 相比 A 还款月数${txt_1}：${Math.abs(planA.totalMonths - planB.totalMonths)} 个月，总利息${txt_2}：${Math.abs((planA.totalInterest - planB.totalInterest).toFixed(2))} 元</div>
 
                 <h3>每月还款详情对比</h3>
                 <div class="monthly-compare">
